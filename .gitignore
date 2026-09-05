@@ -1,6 +1,13 @@
 # OS / tooling
 .DS_Store
+node_modules/
+.env
 .claude/
+
+# Raw source media — never commit originals, only the optimized assets the site references
+*.mov
+*.psd
+*.ai
 
 # Unused source screenshots / superseded originals (not referenced in index.html)
 images/Screenshot*.png
