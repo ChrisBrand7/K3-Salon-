@@ -44,18 +44,54 @@ function initMobileNav() {
   const nav = document.getElementById('site-nav');
   if (!toggle || !nav) return;
 
+  // Scroll position is parked on body.top while locked, so the page cannot
+  // scroll behind the overlay and lands exactly where it was on close.
+  let savedScrollY = 0;
+
+  function lock() {
+    savedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.classList.add('nav-open');
+  }
+
+  function unlock() {
+    document.body.classList.remove('nav-open');
+    document.body.style.top = '';
+    // jump back instantly — smooth scroll-behaviour would animate the restore
+    const root = document.documentElement;
+    const prev = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(0, savedScrollY);
+    root.style.scrollBehavior = prev;
+  }
+
+  function close() {
+    if (!nav.classList.contains('is-open')) return;
+    nav.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    unlock();
+  }
+
   toggle.addEventListener('click', () => {
     const isOpen = nav.classList.toggle('is-open');
     toggle.setAttribute('aria-expanded', String(isOpen));
-    document.body.classList.toggle('nav-open', isOpen);
+    if (isOpen) lock(); else unlock();
   });
 
   nav.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      nav.classList.remove('is-open');
-      toggle.setAttribute('aria-expanded', 'false');
-      document.body.classList.remove('nav-open');
-    });
+    // Close first so the scroll lock is released before the browser resolves
+    // the #anchor jump, otherwise it scrolls a locked (fixed) body.
+    link.addEventListener('click', close);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  // If the viewport grows past the mobile breakpoint while the menu is open,
+  // drop back to the inline nav rather than leaving the body locked.
+  window.matchMedia('(min-width: 781px)').addEventListener('change', (e) => {
+    if (e.matches) close();
   });
 }
 

@@ -50,7 +50,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-body.nav-open { overflow: hidden; }
+/* Scroll lock while the mobile menu is open. Position-fixed rather than plain
+   overflow:hidden, which mobile Safari ignores; script.js stores the scroll
+   offset in `top` and restores it on close. */
+body.nav-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
 
 img { max-width: 100%; display: block; }
 
@@ -141,20 +150,36 @@ a { color: inherit; text-decoration: none; }
   left: 0;
   right: 0;
   z-index: 100;
-  background-color: transparent;
   border-bottom: 1px solid transparent;
-  transition: background-color 0.35s ease, backdrop-filter 0.35s ease, border-color 0.35s ease;
+  transition: border-color 0.35s ease;
 }
 
-.site-header.is-scrolled {
+/* The blur lives on a pseudo-element, NOT on .site-header itself. A
+   backdrop-filter makes an element the containing block for its
+   position: fixed descendants — with it on the header, the mobile nav overlay
+   collapsed to the header's own 64px box the moment the header went
+   translucent, i.e. everywhere except the very top of the page. */
+.site-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: transparent;
+  transition: background-color 0.35s ease, backdrop-filter 0.35s ease;
+}
+
+.site-header.is-scrolled::before {
   background-color: rgba(247, 242, 234, 0.8);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+}
+
+.site-header.is-scrolled {
   border-bottom-color: rgba(26, 23, 20, 0.08);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header.is-scrolled { background-color: rgba(247, 242, 234, 0.94); }
+  .site-header.is-scrolled::before { background-color: rgba(247, 242, 234, 0.94); }
 }
 
 .header-inner {
@@ -251,22 +276,30 @@ body.nav-open .nav-toggle span { background: var(--black); }
   .nav a { font-size: 0.82rem; }
 }
 
-@media (max-width: 560px) {
-  .header-inner { height: 64px; }
+/* Mobile header: matches the site's main 780px mobile breakpoint, so there is
+   no band where the inline desktop links crowd the WhatsApp button. */
+@media (max-width: 780px) {
+  .header-inner { height: 64px; gap: 12px; }
 
   .nav-toggle { display: flex; }
 
+  /* Inline links never render at mobile — the nav becomes a full-screen
+     overlay, parked off-screen until opened. */
   .nav {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 105;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--sp-4);
-    background: var(--cream);
+    /* fully opaque — page content must never show through */
+    background-color: var(--cream);
     transform: translateY(-100%);
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overscroll-behavior: contain;
   }
 
   .nav.is-open { transform: translateY(0); }
@@ -278,6 +311,19 @@ body.nav-open .nav-toggle span { background: var(--black); }
   }
 
   .nav a::after { display: none; }
+
+  /* smaller WhatsApp pill so mark + button + hamburger all breathe */
+  .header-actions { gap: 12px; }
+
+  .header-actions .btn-small {
+    padding: 8px 14px;
+    font-size: 0.72rem;
+    letter-spacing: 0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav { transition: none; }
 }
 
 /* ---------- Hero ---------- */
@@ -426,8 +472,10 @@ a.btn-hero {
    so a jump-to never leaves the section heading hidden underneath it */
 #the-space, #services, #reviews, #testimonials, #contact { scroll-margin-top: 112px; }
 
-@media (max-width: 560px) {
-  #the-space, #services, #reviews, #testimonials, #contact { scroll-margin-top: 92px; }
+/* mobile header is 64px — clear it plus a comfortable buffer so a heading is
+   never sliced by the bar it lands under */
+@media (max-width: 780px) {
+  #the-space, #services, #reviews, #testimonials, #contact { scroll-margin-top: 96px; }
 }
 
 /* Sections that follow a full-bleed image/video: sit flush, no dead cream band */
@@ -621,9 +669,11 @@ div.promo-card {
 .promo-link:focus-visible { gap: 12px; color: var(--cream); border-color: var(--cream); }
 
 @media (max-width: 860px) {
-  .services-grid { flex-direction: column; gap: 24px; }
+  /* stretch, not flex-start — otherwise each stacked card shrinks to its own
+     content width and the column ends up visibly ragged down the right edge */
+  .services-grid { flex-direction: column; align-items: stretch; gap: 24px; }
   .services-col { display: contents; }
-  .service-card { padding: 30px 24px; }
+  .service-card, .promo-card { width: 100%; padding: 30px 24px; }
 }
 
 /* ---------- Experience band ---------- */
@@ -775,6 +825,11 @@ div.promo-card {
   .editorial-media { aspect-ratio: 4 / 5; }
   .editorial-copy { padding: 48px 28px; }
   .editorial-copy p { font-size: 0.875rem; }
+  /* sized to sit on one line at 375px, so the sign-off never orphans a word */
+  .editorial-copy .editorial-descriptor {
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1060,7 +1115,8 @@ div.promo-card {
   left: 50%;
   bottom: 18px;
   transform: translateX(-50%);
-  z-index: 70;
+  /* above page content, below the header (100) so the nav overlay covers it */
+  z-index: 90;
   align-items: center;
   gap: 8px;
   padding: 14px 22px;
@@ -1193,7 +1249,9 @@ div.promo-card {
 }
 
 @media (max-width: 780px) {
-  .site-footer { padding-top: 72px; }
+  /* bottom padding reserves room for the floating CTA, so the copyright bar is
+     never hidden behind it at the very end of the page */
+  .site-footer { padding-top: 72px; padding-bottom: 96px; }
   .footer-grid {
     grid-template-columns: 1fr;
     justify-items: center;
@@ -1229,6 +1287,12 @@ div.promo-card {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 600px) {
-  .container { padding: 0 20px; }
+  /* One gutter for the whole page at mobile. The hero and the editorial copy
+     set their own horizontal padding, so they are matched here explicitly —
+     otherwise those blocks sit 28px in while every container section sits
+     20px in, and the page reads as two different left edges. */
+  .container { padding: 0 24px; }
+  .hero-inner { padding-left: 24px; padding-right: 24px; }
+  .editorial-copy { padding-left: 24px; padding-right: 24px; }
   .btn-primary { width: 100%; justify-content: center; }
 }
