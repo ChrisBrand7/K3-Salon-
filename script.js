@@ -10,7 +10,210 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initHeaderScroll();
   initTestimonials();
+  initServiceSelection();
+  initCartBadge();
+  initWhatsAppGate();
 });
+
+// ---------- Shared cart storage ----------
+// sessionStorage (not localStorage) so a selection made on the price list
+// survives clicking Home/Reviews/Contact and coming back, but never lingers
+// for a visitor who returns another day — it clears when the tab closes.
+
+const CART_STORAGE_KEY = 'k3-cart';
+
+function slugify(text) {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+}
+
+function readCart() {
+  try {
+    const raw = window.sessionStorage.getItem(CART_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeCart(items) {
+  try {
+    window.sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {
+    /* storage unavailable (private browsing, quota) — cart just won't persist */
+  }
+}
+
+// ---------- Booking time slots (office hours, Sunday differs) ----------
+// Kept in sync with the hours printed in the footer: Mon–Sat 9:30am–5:30pm,
+// Sunday 10:30am–4pm.
+
+function formatTime12(hour, minute) {
+  const period = hour < 12 ? 'am' : 'pm';
+  let h = hour % 12;
+  if (h === 0) h = 12;
+  const m = minute === 0 ? '00' : String(minute).padStart(2, '0');
+  return `${h}:${m}${period}`;
+}
+
+function buildTimeSlots(startHour, startMinute, endHour, endMinute, stepMinutes) {
+  const slots = [];
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  for (let t = start; t <= end; t += stepMinutes) {
+    slots.push(formatTime12(Math.floor(t / 60), t % 60));
+  }
+  return slots;
+}
+
+function timeSlotsForDate(dateValue) {
+  const isSunday = dateValue ? new Date(`${dateValue}T00:00:00`).getDay() === 0 : false;
+  return isSunday ? buildTimeSlots(10, 30, 16, 0, 30) : buildTimeSlots(9, 30, 17, 30, 30);
+}
+
+function populateTimeOptions(select, dateValue) {
+  const previousValue = select.value;
+  const slots = timeSlotsForDate(dateValue);
+
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.disabled = true;
+  placeholder.textContent = 'Select a time';
+  select.appendChild(placeholder);
+
+  slots.forEach(slot => {
+    const opt = document.createElement('option');
+    opt.value = slot;
+    opt.textContent = slot;
+    select.appendChild(opt);
+  });
+
+  select.value = slots.includes(previousValue) ? previousValue : '';
+}
+
+function formatDateForMessage(dateValue) {
+  if (!dateValue) return '';
+  const date = new Date(`${dateValue}T00:00:00`);
+  return date.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+// ---------- Cart badge (pages without the full selection panel, e.g. index.html) ----------
+
+function initCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  if (!badge) return;
+
+  const cart = readCart();
+  if (!cart.length) return;
+
+  const sum = cart.reduce((total, item) => total + (item.priceValue || 0), 0);
+  const anyFrom = cart.some(item => item.isFrom);
+  const totalText = `${anyFrom ? 'from ' : ''}R${sum}`;
+
+  document.getElementById('cart-badge-count').textContent = String(cart.length);
+  document.getElementById('cart-badge-total').textContent = totalText;
+  badge.setAttribute('aria-label', `View cart: ${cart.length} service${cart.length === 1 ? '' : 's'} selected, ${totalText}`);
+
+  badge.hidden = false;
+  document.body.classList.add('has-cart-badge');
+}
+
+// ---------- WhatsApp gate (empty-cart interstitial on every generic WhatsApp link) ----------
+// Only intercepts when the cart is empty — a visitor who already has services
+// selected clearly knows what they're doing and is left alone.
+
+function initWhatsAppGate() {
+  const gate = document.getElementById('whatsapp-gate-modal');
+  const gateLinks = document.querySelectorAll('.js-whatsapp-gate');
+  if (!gate || !gateLinks.length) return;
+
+  const chooseBtn = document.getElementById('whatsapp-gate-choose');
+  const skipBtn = document.getElementById('whatsapp-gate-skip');
+  const onServicesPage = /services\.html$/.test(window.location.pathname);
+
+  let lastFocused = null;
+  let pendingLink = null;
+  let gateOpen = false;
+
+  function getFocusable() {
+    return Array.from(gate.querySelectorAll('a[href], button:not([disabled])'))
+      .filter(el => el.offsetParent !== null);
+  }
+
+  function onKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeGate();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = getFocusable();
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function openGate(link) {
+    pendingLink = link;
+    lastFocused = link;
+    gateOpen = true;
+
+    gate.hidden = false;
+    void gate.offsetWidth;
+    gate.classList.add('is-visible');
+    document.addEventListener('keydown', onKeydown);
+
+    const focusables = getFocusable();
+    if (focusables.length) focusables[0].focus();
+  }
+
+  function closeGate() {
+    if (!gateOpen) return;
+    gateOpen = false;
+    gate.classList.remove('is-visible');
+    window.setTimeout(() => { gate.hidden = true; }, 260);
+    document.removeEventListener('keydown', onKeydown);
+    if (lastFocused) lastFocused.focus();
+  }
+
+  gateLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      if (readCart().length > 0) return; // already mid-booking — don't interrupt
+      e.preventDefault();
+      openGate(link);
+    });
+  });
+
+  gate.querySelectorAll('[data-gate-close]').forEach(el => el.addEventListener('click', closeGate));
+
+  chooseBtn.addEventListener('click', () => {
+    closeGate();
+    // already on the price list — just let them start picking services
+    // rather than reloading the page they're standing on
+    if (!onServicesPage) window.location.href = 'services.html';
+  });
+
+  skipBtn.addEventListener('click', () => {
+    const link = pendingLink;
+    closeGate();
+    if (!link) return;
+    const a = document.createElement('a');
+    a.href = link.getAttribute('href');
+    a.target = link.getAttribute('target') || '_blank';
+    a.rel = link.getAttribute('rel') || 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+}
 
 // ---------- Scroll reveal (single site-wide entrance treatment) ----------
 
@@ -100,7 +303,14 @@ function initMobileNav() {
 function initHeaderScroll() {
   const header = document.querySelector('.site-header');
   const hero = document.querySelector('.hero');
-  if (!header || !hero) return;
+  if (!header) return;
+
+  // Pages without a hero (services.html) have no dark image for the header to
+  // sit over, so it stays in its scrolled treatment from the top.
+  if (!hero) {
+    header.classList.add('is-scrolled');
+    return;
+  }
 
   // Scroll-position fallback: keeps the header correct even if IntersectionObserver
   // callbacks are throttled (e.g. backgrounded/hidden tabs), and is the only path
@@ -257,4 +467,413 @@ function initTestimonials() {
   });
 
   start();
+}
+
+// ---------- Service selection & WhatsApp booking (services.html) ----------
+
+function initServiceSelection() {
+  const rows = Array.from(document.querySelectorAll('.price-row'));
+  const panel = document.getElementById('selection-panel');
+  if (!rows.length || !panel) return;
+
+  const WHATSAPP_NUMBER = '27609820397';
+
+  // A name is ambiguous (needs its category spelled out) when it repeats
+  // under more than one heading, e.g. "Eyebrow" under both Threading and
+  // Waxing at different prices.
+  const nameCategories = new Map();
+  rows.forEach(row => {
+    const name = row.querySelector('.price-name').textContent.trim();
+    const category = row.closest('.price-group').querySelector('h2').textContent.trim();
+    const key = name.toLowerCase();
+    if (!nameCategories.has(key)) nameCategories.set(key, new Set());
+    nameCategories.get(key).add(category);
+  });
+
+  const ICON_MARKUP =
+    '<span class="icon-plus"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M8 2v12M2 8h12"/></svg></span>' +
+    '<span class="icon-check"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 8.5l3.2 3.2L13 4.5"/></svg></span>';
+
+  // Restored from sessionStorage so a cart started here survives a trip to
+  // Home/Reviews/Contact and back — ids are content-based (category + name)
+  // rather than an incrementing counter so they still match on the next load.
+  const storedIds = new Set(readCart().map(item => item.id));
+  const selections = new Map();
+
+  rows.forEach(row => {
+    const nameEl = row.querySelector('.price-name');
+    const amtEl = row.querySelector('.price-amt');
+    if (!nameEl || !amtEl) return;
+
+    const name = nameEl.textContent.trim();
+    const category = row.closest('.price-group').querySelector('h2').textContent.trim();
+    const priceLabel = amtEl.textContent.trim();
+    const isFrom = amtEl.classList.contains('is-from');
+    const priceValue = parseInt(priceLabel.replace(/[^\d]/g, ''), 10) || 0;
+    const ambiguous = nameCategories.get(name.toLowerCase()).size > 1;
+    const label = ambiguous ? `${name} (${category})` : name;
+
+    const id = `${slugify(category)}--${slugify(name)}`;
+    row.dataset.serviceId = id;
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('aria-pressed', storedIds.has(id) ? 'true' : 'false');
+    row.setAttribute('aria-label', `${label}, ${priceLabel}`);
+
+    const icon = document.createElement('span');
+    icon.className = 'price-select-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = ICON_MARKUP;
+    row.prepend(icon);
+
+    const service = { id, label, priceLabel, priceValue, isFrom };
+
+    if (storedIds.has(id)) {
+      selections.set(id, service);
+      row.classList.add('is-selected');
+    }
+
+    function toggle() {
+      if (selections.has(id)) {
+        selections.delete(id);
+        row.classList.remove('is-selected');
+        row.setAttribute('aria-pressed', 'false');
+      } else {
+        selections.set(id, service);
+        row.classList.add('is-selected');
+        row.setAttribute('aria-pressed', 'true');
+      }
+      renderSelections();
+    }
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
+
+  function removeSelection(id) {
+    selections.delete(id);
+    const row = rows.find(r => r.dataset.serviceId === id);
+    if (row) {
+      row.classList.remove('is-selected');
+      row.setAttribute('aria-pressed', 'false');
+    }
+    renderSelections();
+  }
+
+  function clearAll() {
+    selections.forEach((service, id) => {
+      const row = rows.find(r => r.dataset.serviceId === id);
+      if (row) {
+        row.classList.remove('is-selected');
+        row.setAttribute('aria-pressed', 'false');
+      }
+    });
+    selections.clear();
+    renderSelections();
+  }
+
+  function computeTotals() {
+    let sum = 0;
+    let anyFrom = false;
+    selections.forEach(s => {
+      sum += s.priceValue;
+      if (s.isFrom) anyFrom = true;
+    });
+    return { sum, anyFrom };
+  }
+
+  function formatTotal(sum, anyFrom) {
+    return `${anyFrom ? 'from ' : ''}R${sum}`;
+  }
+
+  // ---- panel / bar / sheet chrome ----
+
+  const bar = document.getElementById('selection-bar');
+  const sheet = document.getElementById('selection-sheet');
+  const backdrop = document.getElementById('selection-backdrop');
+  const listDesktop = document.getElementById('selection-list-desktop');
+  const listMobile = document.getElementById('selection-list-mobile');
+  const countDesktop = document.getElementById('selection-count-desktop');
+  const countMobile = document.getElementById('selection-count-mobile');
+  const totalDesktop = document.getElementById('selection-total-desktop');
+  const totalMobile = document.getElementById('selection-total-mobile');
+  const totalMobileSheet = document.getElementById('selection-total-mobile-sheet');
+  const clearDesktop = document.getElementById('selection-clear-desktop');
+  const clearMobile = document.getElementById('selection-clear-mobile');
+  const bookDesktop = document.getElementById('selection-book-desktop');
+  const bookMobile = document.getElementById('selection-book-mobile');
+  const barToggle = document.getElementById('selection-bar-toggle');
+  const sheetClose = document.getElementById('selection-sheet-close');
+  const comboWrapDesktop = document.getElementById('selection-combo-wrap-desktop');
+  const comboWrapMobile = document.getElementById('selection-combo-wrap-mobile');
+  const COMBO_THRESHOLD = 3;
+
+  let sheetOpen = false;
+
+  // Fades an element in/out over the site's 250ms motion duration without
+  // leaving it in the layout or tab order while hidden — mirrors the
+  // testimonial track's instant-position-then-transition technique.
+  function showEl(el) {
+    clearTimeout(el._hideTimer);
+    el.hidden = false;
+    void el.offsetWidth;
+    el.classList.add('is-visible');
+  }
+
+  function hideEl(el) {
+    el.classList.remove('is-visible');
+    el._hideTimer = window.setTimeout(() => { el.hidden = true; }, 260);
+  }
+
+  function renderList(container) {
+    container.innerHTML = '';
+    selections.forEach(s => {
+      const li = document.createElement('li');
+      li.className = 'selection-item';
+
+      const name = document.createElement('span');
+      name.className = 'selection-item-name';
+      name.textContent = s.label;
+
+      const price = document.createElement('span');
+      price.className = 'selection-item-price';
+      price.textContent = s.priceLabel;
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'selection-item-remove';
+      remove.setAttribute('aria-label', `Remove ${s.label}`);
+      remove.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M3 3l10 10M13 3L3 13"/></svg>';
+      remove.addEventListener('click', () => removeSelection(s.id));
+
+      li.append(name, price, remove);
+      container.appendChild(li);
+    });
+  }
+
+  function renderSelections() {
+    const count = selections.size;
+    const { sum, anyFrom } = computeTotals();
+    const totalText = formatTotal(sum, anyFrom);
+    const countText = `${count} selected`;
+
+    renderList(listDesktop);
+    renderList(listMobile);
+
+    countDesktop.textContent = countText;
+    countMobile.textContent = countText;
+    totalDesktop.textContent = count ? `Total: ${totalText}` : '';
+    totalMobile.textContent = count ? totalText : '';
+    totalMobileSheet.textContent = count ? `Total: ${totalText}` : '';
+
+    document.body.classList.toggle('has-selection', count > 0);
+
+    const comboQualified = count >= COMBO_THRESHOLD;
+    comboWrapDesktop.classList.toggle('is-active', comboQualified);
+    comboWrapMobile.classList.toggle('is-active', comboQualified);
+
+    if (count > 0) {
+      showEl(panel);
+      showEl(bar);
+    } else {
+      hideEl(panel);
+      hideEl(bar);
+      closeSheet();
+    }
+
+    writeCart(Array.from(selections.values()));
+  }
+
+  function openSheet() {
+    sheetOpen = true;
+    showEl(sheet);
+    showEl(backdrop);
+    barToggle.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSheet() {
+    if (!sheetOpen) return;
+    sheetOpen = false;
+    hideEl(sheet);
+    hideEl(backdrop);
+    barToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  barToggle.addEventListener('click', () => (sheetOpen ? closeSheet() : openSheet()));
+  sheetClose.addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+  clearDesktop.addEventListener('click', clearAll);
+  clearMobile.addEventListener('click', () => { clearAll(); closeSheet(); });
+
+  // ---- booking modal ----
+
+  const modal = document.getElementById('booking-modal');
+  const modalSummaryList = document.getElementById('modal-summary-list');
+  const modalSummaryTotal = document.getElementById('modal-summary-total');
+  const bookingForm = document.getElementById('booking-form');
+  const nameInput = document.getElementById('booking-name');
+  const dayInput = document.getElementById('booking-day');
+  const timeInput = document.getElementById('booking-time');
+  const notesInput = document.getElementById('booking-notes');
+  const nameError = document.getElementById('booking-name-error');
+  const dayError = document.getElementById('booking-day-error');
+  const timeError = document.getElementById('booking-time-error');
+  const modalCombo = document.getElementById('modal-combo');
+
+  // today's date as YYYY-MM-DD in the visitor's own timezone (not UTC, which
+  // toISOString would give and could roll back to yesterday in the evening)
+  const todayValue = (() => {
+    const d = new Date();
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d - tzOffsetMs).toISOString().slice(0, 10);
+  })();
+  dayInput.min = todayValue;
+
+  dayInput.addEventListener('change', () => {
+    populateTimeOptions(timeInput, dayInput.value);
+  });
+  populateTimeOptions(timeInput, dayInput.value);
+
+  let lastFocused = null;
+  let modalOpen = false;
+
+  function getFocusable() {
+    return Array.from(modal.querySelectorAll('a[href], button:not([disabled]), input, textarea, select'))
+      .filter(el => el.offsetParent !== null);
+  }
+
+  function onModalKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeModal();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = getFocusable();
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function setFieldError(input, errorEl, show) {
+    input.closest('.form-field').classList.toggle('has-error', show);
+    errorEl.hidden = !show;
+    input.setAttribute('aria-invalid', show ? 'true' : 'false');
+  }
+
+  [
+    [nameInput, nameError],
+    [dayInput, dayError],
+    [timeInput, timeError]
+  ].forEach(([input, errorEl]) => {
+    input.addEventListener('input', () => {
+      if (input.value.trim()) setFieldError(input, errorEl, false);
+    });
+  });
+
+  function openModal(triggerEl) {
+    closeSheet();
+    lastFocused = triggerEl || document.activeElement;
+
+    modalSummaryList.innerHTML = '';
+    selections.forEach(s => {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = s.label;
+      const price = document.createElement('span');
+      price.className = 'item-price';
+      price.textContent = s.priceLabel;
+      li.append(name, price);
+      modalSummaryList.appendChild(li);
+    });
+    const { sum, anyFrom } = computeTotals();
+    modalSummaryTotal.textContent = `Estimated total: ${formatTotal(sum, anyFrom)}`;
+    modalCombo.hidden = selections.size < COMBO_THRESHOLD;
+
+    modalOpen = true;
+    modal.hidden = false;
+    void modal.offsetWidth;
+    modal.classList.add('is-visible');
+    document.addEventListener('keydown', onModalKeydown);
+
+    const focusables = getFocusable();
+    if (focusables.length) focusables[0].focus();
+  }
+
+  function closeModal() {
+    if (!modalOpen) return;
+    modalOpen = false;
+    modal.classList.remove('is-visible');
+    window.setTimeout(() => { modal.hidden = true; }, 260);
+    document.removeEventListener('keydown', onModalKeydown);
+    if (lastFocused) lastFocused.focus();
+  }
+
+  modal.querySelectorAll('[data-modal-close]').forEach(el => el.addEventListener('click', closeModal));
+  [bookDesktop, bookMobile].forEach(btn => btn.addEventListener('click', (e) => openModal(e.currentTarget)));
+
+  bookingForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const name = nameInput.value.trim();
+    const day = dayInput.value;
+    const time = timeInput.value;
+    const notes = notesInput.value.trim();
+
+    setFieldError(nameInput, nameError, !name);
+    setFieldError(dayInput, dayError, !day);
+    setFieldError(timeInput, timeError, !time);
+
+    if (!name || !day || !time) {
+      (!name ? nameInput : (!day ? dayInput : timeInput)).focus();
+      return;
+    }
+
+    const { sum, anyFrom } = computeTotals();
+    const lines = [
+      "Hi K3, I'd like to book.",
+      '',
+      `Name: ${name}`,
+      `Preferred day: ${formatDateForMessage(day)}`,
+      `Preferred time: ${time}`,
+      '',
+      'Services:',
+      ...Array.from(selections.values()).map(s => `- ${s.label} (${s.priceLabel})`),
+      '',
+      `Estimated total: ${formatTotal(sum, anyFrom)}`
+    ];
+    if (notes) {
+      lines.push('', notes);
+    }
+
+    const message = lines.join('\n');
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    closeModal();
+  });
+
+  // Reflects any selections just restored from sessionStorage — shows the
+  // panel/bar, combo banner and totals immediately if the visitor is
+  // returning to the price list with items already in their cart.
+  renderSelections();
 }
