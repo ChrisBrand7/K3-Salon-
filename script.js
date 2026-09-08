@@ -306,9 +306,12 @@ function initHeaderScroll() {
   if (!header) return;
 
   // Pages without a hero (services.html) have no dark image for the header to
-  // sit over, so it stays in its scrolled treatment from the top.
+  // sit over, so it stays in its scrolled treatment from the top — and the
+  // header/mobile WhatsApp buttons (gated on this same flag) show right away
+  // since there's no hero CTA there for them to compete with.
   if (!hero) {
     header.classList.add('is-scrolled');
+    document.body.classList.add('is-past-hero');
     return;
   }
 
@@ -319,7 +322,9 @@ function initHeaderScroll() {
   const updateFromScroll = () => {
     ticking = false;
     const heroBottom = hero.getBoundingClientRect().bottom;
-    header.classList.toggle('is-scrolled', heroBottom <= 80);
+    const past = heroBottom <= 80;
+    header.classList.toggle('is-scrolled', past);
+    document.body.classList.toggle('is-past-hero', past);
   };
   const onScroll = () => {
     if (!ticking) {
@@ -334,7 +339,9 @@ function initHeaderScroll() {
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      header.classList.toggle('is-scrolled', !entry.isIntersecting);
+      const past = !entry.isIntersecting;
+      header.classList.toggle('is-scrolled', past);
+      document.body.classList.toggle('is-past-hero', past);
     });
   }, {
     threshold: 0,

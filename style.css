@@ -258,6 +258,25 @@ body.nav-open .nav a { text-shadow: none; }
   justify-self: end;
 }
 
+/* Hidden over the hero (nothing to compete with the hero's own WhatsApp CTA)
+   and revealed once the visitor has scrolled past it — driven by the same
+   body.is-past-hero flag as the mobile floating button, set in script.js.
+   Opacity/pointer-events only, so the hamburger button never shifts. */
+.header-actions .btn-small {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+body.is-past-hero .header-actions .btn-small {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-actions .btn-small { transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
+}
+
 .nav-toggle {
   display: none;
   flex-direction: column;
@@ -376,13 +395,13 @@ body.nav-open .nav-toggle span { background: var(--black); }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 32% 42%;
+  object-position: 58% 40%;
   animation: heroScaleIn 6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes heroScaleIn {
-  from { transform: scale(1.16); }
-  to { transform: scale(1.08); }
+  from { transform: scale(1.08); }
+  to { transform: scale(1); }
 }
 
 .hero-scrim {
@@ -1244,7 +1263,17 @@ a.btn-hero {
   font-weight: 500;
   white-space: nowrap;
   border: 1px solid rgba(212, 180, 131, 0.4);
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  /* hidden over the hero, revealed via body.is-past-hero (set in script.js)
+     once the visitor scrolls past it — opacity only, so its position/layout
+     never shifts and the hover transform below still applies untouched */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+body.is-past-hero .mobile-cta {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .mobile-cta:hover,
@@ -1255,7 +1284,7 @@ a.btn-hero {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobile-cta { transition: background-color 0.2s ease, color 0.2s ease; }
+  .mobile-cta { transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
   .mobile-cta:hover, .mobile-cta:focus-visible { transform: translateX(-50%); }
 }
 
