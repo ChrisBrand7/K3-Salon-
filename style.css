@@ -654,6 +654,53 @@ a.btn-hero {
 
 .price-section { padding-top: 0; }
 
+/* ---------- Legal pages (Privacy Policy, Terms of Service) ---------- */
+
+.legal-section { padding-top: 0; padding-bottom: var(--sp-16); }
+
+.legal-content { max-width: 68ch; }
+
+.legal-content p {
+  margin: 0 0 var(--sp-2);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.legal-content h2 {
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: var(--sp-6) 0 var(--sp-2);
+}
+
+.legal-content h2:first-child { margin-top: 0; }
+
+.legal-content ul {
+  margin: 0 0 var(--sp-2);
+  padding-left: 1.2em;
+}
+
+.legal-content li {
+  margin-bottom: 8px;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.legal-content a {
+  color: var(--gold-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.legal-content a:hover,
+.legal-content a:focus-visible { color: var(--black); }
+
+@media (max-width: 600px) {
+  .legal-section { padding-bottom: var(--sp-8); }
+}
+
 .price-layout {
   display: grid;
   grid-template-columns: 190px 1fr;
@@ -1456,6 +1503,18 @@ body.has-cart-badge main { padding-bottom: 120px; }
 }
 
 .footer-bottom p { margin: 0; }
+
+.footer-legal a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.footer-legal a:hover,
+.footer-legal a:focus-visible { color: var(--gold-light); }
+
+.footer-legal .divider { margin: 0 8px; opacity: 0.6; }
 
 .footer-rating {
   display: inline-flex;

@@ -483,7 +483,7 @@ function initServiceSelection() {
   const panel = document.getElementById('selection-panel');
   if (!rows.length || !panel) return;
 
-  const WHATSAPP_NUMBER = '27609820397';
+  const WHATSAPP_NUMBER = '27720532326';
 
   // A name is ambiguous (needs its category spelled out) when it repeats
   // under more than one heading, e.g. "Eyebrow" under both Threading and
