@@ -13,7 +13,56 @@ document.addEventListener('DOMContentLoaded', () => {
   initServiceSelection();
   initCartBadge();
   initWhatsAppGate();
+  initExperienceVideo(prefersReducedMotion);
 });
+
+// ---------- Experience band video ----------
+// Mobile Safari refuses autoplay in Low Power Mode and under data saver, and
+// then paints its own play button across the middle of the band, right over
+// the heading. Rather than leave that sitting there, we ask the video to play
+// and, if the promise rejects, hide the element so the band falls back to the
+// poster it already carries as a CSS background.
+
+function initExperienceVideo(prefersReducedMotion) {
+  const band = document.querySelector('.experience-band');
+  if (!band) return;
+  const video = band.querySelector('video');
+  if (!video) return;
+
+  // A looping background clip is motion, so reduced-motion gets the still frame.
+  if (prefersReducedMotion) {
+    band.classList.add('video-unavailable');
+    video.removeAttribute('autoplay');
+    video.pause();
+    return;
+  }
+
+  let playing = false;
+
+  function attempt() {
+    const p = video.play();
+    if (!p || typeof p.then !== 'function') return; // older browsers: no promise
+    p.then(() => {
+      playing = true;
+      band.classList.remove('video-unavailable');
+    }).catch(() => {
+      if (!playing) band.classList.add('video-unavailable');
+    });
+  }
+
+  attempt();
+
+  // A tap anywhere counts as a user gesture, so it is one more chance to start
+  // for a visitor whose browser blocked the unprompted attempt.
+  ['touchstart', 'click'].forEach(evt => {
+    document.addEventListener(evt, () => { if (!playing) attempt(); }, { once: true, passive: true });
+  });
+
+  // Coming back to the tab pauses playback on some browsers; pick it up again.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && playing && video.paused) video.play().catch(() => {});
+  });
+}
 
 // ---------- Shared cart storage ----------
 // sessionStorage (not localStorage) so a selection made on the price list

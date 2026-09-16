@@ -119,12 +119,15 @@
 
   <!-- EXPERIENCE BAND -->
   <section id="reviews" class="experience-band">
-    <!-- poster paints the first frame immediately so the band is never empty
-         while the clip downloads; preload=metadata lets the browser start
-         buffering as the section approaches rather than on first play -->
-    <video autoplay muted loop playsinline preload="metadata"
+    <!-- The poster also sits on .experience-band as a CSS background, so if
+         autoplay is refused (iOS Low Power Mode, data saver) script.js can drop
+         the element entirely rather than let Safari paint a play button across
+         the heading. preload=auto because the clip is only 865KB and starting
+         late was worse than fetching it up front. -->
+    <video autoplay muted loop playsinline webkit-playsinline preload="auto"
            poster="images/experience-poster.jpg"
            width="1280" height="720"
+           disablepictureinpicture
            aria-label="Hair wash treatment at the K3 basin">
       <source src="videos/spa-treatment.mp4" type="video/mp4">
     </video>

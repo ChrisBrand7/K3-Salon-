@@ -876,6 +876,12 @@ a.btn-hero {
   justify-content: center;
   overflow: hidden;
   color: var(--cream);
+  /* same frame as the video's poster, so the band always shows the image even
+     when the clip is still loading or cannot play at all */
+  background-image: url('images/experience-poster.jpg');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
 }
 
 .experience-band video {
@@ -886,7 +892,14 @@ a.btn-hero {
   object-fit: cover;
   object-position: center 30%;
   z-index: -2;
+  /* taps pass straight through — never summon the native video controls */
+  pointer-events: none;
 }
+
+/* Autoplay refused, or reduced motion requested. Removing the element stops
+   Safari painting its play button over the heading; the background image above
+   keeps the band looking identical minus the movement. */
+.experience-band.video-unavailable video { display: none; }
 
 .experience-scrim {
   position: absolute;
