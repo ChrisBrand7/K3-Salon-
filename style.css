@@ -391,6 +391,12 @@ body.nav-open .nav-toggle span { background: var(--black); }
   z-index: -1;
 }
 
+/* <picture> wraps the hero and editorial images to offer WebP with a JPEG
+   fallback. display:contents keeps the wrapper out of layout, so every rule
+   below still applies to the <img> exactly as it did before. */
+.hero-media picture,
+.editorial-media picture { display: contents; }
+
 .hero-media img {
   width: 100%;
   height: 100%;
