@@ -26,7 +26,7 @@ One-stop convenience: threading, waxing, facials, manicure/pedicure, and hair se
 
 - Address: 18 Weaver Crescent, Umhlanga, Durban.
 - Hours: Monday–Saturday 9:30am–5:30pm, Sunday 10:30am–4:00pm.
-- Booking channel: WhatsApp (`https://wa.me/27720532326`, pre-filled with "Hi K3, I'd like to book an appointment."). The same number is published as a `tel:` link in the footer: `+27 72 053 2326`, displayed locally as 072 053 2326. No online booking system (e.g. Fresha) has been provided; do not add placeholder links for one.
+- Booking channel: WhatsApp (`https://wa.me/27845045158`, pre-filled with "Hi K3, I'd like to book an appointment."). The same number is published as a `tel:` link in the footer: `+27 84 504 5158`, displayed locally as 084 504 5158. No online booking system (e.g. Fresha) has been provided; do not add placeholder links for one.
 - Rating shown: 4.9 on Google (real, screenshot-sourced).
 
 ## Capabilities and Constraints
