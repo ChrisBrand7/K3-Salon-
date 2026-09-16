@@ -850,7 +850,7 @@ function initServiceSelection() {
 
     const { sum, anyFrom } = computeTotals();
     const lines = [
-      "Hi K3, I'd like to book.",
+      "Hi Cutting Edge Hair Design, I'd like to book.",
       '',
       `Name: ${name}`,
       `Preferred day: ${formatDateForMessage(day)}`,
