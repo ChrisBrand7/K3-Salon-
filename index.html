@@ -110,7 +110,13 @@
 
   <!-- EXPERIENCE BAND -->
   <section id="reviews" class="experience-band">
-    <video autoplay muted loop playsinline preload="none" aria-label="Hair wash treatment at the K3 basin">
+    <!-- poster paints the first frame immediately so the band is never empty
+         while the clip downloads; preload=metadata lets the browser start
+         buffering as the section approaches rather than on first play -->
+    <video autoplay muted loop playsinline preload="metadata"
+           poster="images/experience-poster.jpg"
+           width="1280" height="720"
+           aria-label="Hair wash treatment at the K3 basin">
       <source src="videos/spa-treatment.mp4" type="video/mp4">
     </video>
     <div class="experience-scrim"></div>
